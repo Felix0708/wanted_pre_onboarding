@@ -16,10 +16,18 @@ function App() {
     (node: HTMLDivElement | null) => {
       if (loading) return;
       if (observerRef.current) observerRef.current.disconnect();
+      // observerRef.current = new IntersectionObserver((entries) => {
+      //   if (entries[0].isIntersecting && isEnd) {
+      //     setPage((prevPage) => prevPage + 1);
+      //   }
+      // });
       observerRef.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && isEnd) {
           setPage((prevPage) => prevPage + 1);
         }
+      }, {
+        threshold: 0.5,
+        rootMargin: '100px',
       });
       if (node) observerRef.current.observe(node);
     },
@@ -27,17 +35,36 @@ function App() {
   );
   
   useEffect(() => {
+    let didCancel = false;  // 중복 요청 방지 플래그
+
     console.log(`page: `, page)
     setLoading(true);
     getMockData(page)
       .then((response: MockDataResult) => {
-        setProductList((prev) => [...prev, ...response.datas]);
-        setIsEnd(!response.isEnd);
-        setLoading(false);
+        // setProductList((prev) => [...prev, ...response.datas]);
+        // setIsEnd(!response.isEnd);
+        // setLoading(false);
+        if (!didCancel) {  // 컴포넌트가 언마운트되거나 중복 요청 시 실행 방지
+          setProductList((prev) => {
+            const newProducts = response.datas.filter(
+              (newProduct) => !prev.some((product) => product.productId === newProduct.productId)
+            );
+            return [...prev, ...newProducts];
+          });
+          setIsEnd(!response.isEnd);
+          setLoading(false);
+        }
+        // setProductList((prev) => [...prev, ...response.datas]);
+        // setIsEnd(!response.isEnd);
+        // setLoading(false);
       })
       .catch((err) => {
-        console.error('Error fetching data:', err);
-        setLoading(false);
+        if (!didCancel) {
+          console.error('Error fetching data:', err);
+          setLoading(false);
+        }
+        // console.error('Error fetching data:', err);
+        // setLoading(false);
       });
   }, [page])
 
@@ -53,7 +80,7 @@ function App() {
           >
             <div 
               ref={index === productList.length - 1 ? lastProductRef : null}
-              style={{margin: "10px", fontSize: "30px"}}
+              style={{margin: "10px", fontSize: "15px"}}
             >
               {product.productName} : {product.price} 원
             </div>
